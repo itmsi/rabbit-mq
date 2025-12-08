@@ -179,6 +179,83 @@ Jika lupa password, reset dengan:
 docker compose exec rabbitmq rabbitmqctl change_password admin new_password
 ```
 
+### Error: Failed to Pull Image (DNS/Network Issue)
+
+Jika muncul error seperti:
+```
+Error response from daemon: failed to resolve reference "docker.io/library/rabbitmq:3-management-alpine": dial tcp: lookup registry-1.docker.io on 127.0.0.53:53: i/o timeout
+```
+
+Ini adalah masalah koneksi ke Docker registry. Solusinya:
+
+#### 1. Cek Koneksi Internet
+
+```bash
+ping -c 3 8.8.8.8
+ping -c 3 registry-1.docker.io
+```
+
+#### 2. Cek DNS Resolution
+
+```bash
+nslookup registry-1.docker.io
+```
+
+#### 3. Ubah DNS Server (Jika DNS Default Bermasalah)
+
+Edit file `/etc/systemd/resolved.conf`:
+
+```bash
+sudo nano /etc/systemd/resolved.conf
+```
+
+Tambahkan atau ubah:
+```
+[Resolve]
+DNS=8.8.8.8 8.8.4.4
+```
+
+Restart systemd-resolved:
+```bash
+sudo systemctl restart systemd-resolved
+```
+
+#### 4. Konfigurasi Docker Daemon DNS
+
+Buat atau edit file `/etc/docker/daemon.json`:
+
+```bash
+sudo nano /etc/docker/daemon.json
+```
+
+Tambahkan:
+```json
+{
+  "dns": ["8.8.8.8", "8.8.4.4"]
+}
+```
+
+Restart Docker:
+```bash
+sudo systemctl restart docker
+```
+
+#### 5. Alternatif: Pull Image Manual
+
+Jika masih bermasalah, coba pull image secara manual:
+
+```bash
+docker pull rabbitmq:3-management-alpine
+```
+
+#### 6. Jika Server Tidak Punya Akses Internet
+
+Jika server tidak memiliki akses internet, Anda perlu:
+- Download image di server yang punya internet
+- Export image: `docker save rabbitmq:3-management-alpine > rabbitmq.tar`
+- Transfer file ke server
+- Import image: `docker load < rabbitmq.tar`
+
 ## Keamanan
 
 1. **Ubah password default** sebelum production
@@ -190,5 +267,5 @@ docker compose exec rabbitmq rabbitmqctl change_password admin new_password
 
 - **Docker**: 29.1.2 (build 890dcca)
 - **RabbitMQ Image**: rabbitmq:3-management-alpine
-- **Docker Compose Version**: 3.8
+- **Docker Compose**: Versi terbaru (tidak menggunakan field `version` karena sudah obsolete)
 
