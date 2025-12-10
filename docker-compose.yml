@@ -4,9 +4,6 @@ services:
     container_name: rabbitmq
     hostname: rabbitmq
     restart: unless-stopped
-    ports:
-      - "5672:5672"      # AMQP port
-      - "15672:15672"    # Management UI port
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-admin}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-admin123}
@@ -16,12 +13,31 @@ services:
       - rabbitmq_logs:/var/log/rabbitmq
     networks:
       - traefik-network
+    labels:
+      # Enable Traefik
+      - "traefik.enable=true"
+      
+      # Router untuk RabbitMQ Management UI (port 15672) - HTTP (Cloudflare handle HTTPS)
+      - "traefik.http.routers.rabbitmq-ui.rule=Host(`rabbitmq.motorsights.com`)"
+      - "traefik.http.routers.rabbitmq-ui.entrypoints=web"
+      - "traefik.http.routers.rabbitmq-ui.service=rabbitmq-ui"
+      - "traefik.http.services.rabbitmq-ui.loadbalancer.server.port=15672"
+      
+      - "com.centurylinklabs.watchtower.enable=false"
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
 volumes:
   rabbitmq_data:
@@ -32,4 +48,5 @@ volumes:
 networks:
   traefik-network:
     external: true
+    name: traefik-network
 
